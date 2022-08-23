@@ -36,7 +36,7 @@ async def register(
     async with aiofiles.open('.env', filemode) as f:
             config = await f.read()
             if 'CHAT_HASH_ID' not in config:
-                await f.write(f"CHAT_HASH_ID={user_info['account_hash']}")
+                await f.write(f"\nCHAT_HASH_ID={user_info['account_hash']}")
 
     logger.info(f"user {user_info['nickname']} successfully register")
     print(f"Добро пожаловать, {user_info['nickname']}!\r\n")

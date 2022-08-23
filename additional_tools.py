@@ -10,7 +10,7 @@ def get_config(script_action) -> dict:
     config['host'] = env.str('HOST', None)
     config['port'] = env.int('WRITING_PORT', 0)
     if script_action == 'read':
-        config['chat_file_path'] = env.str('chat_file_path', 'chat_history.txt')
+        config['chat_file_path'] = env.str('CHAT_FILE_PATH', 'chat_history.txt')
         parser.add_argument('--chat_file_path')
     else:
         config['chat_hash_id'] = env.str('CHAT_HASH_ID', None)

@@ -18,8 +18,9 @@ async def print_and_save_message(message: str, chat_file_path: str):
 
 async def handle_connection(host: str, port: int, chat_file_path: str):
     reader, writer = await asyncio.open_connection(
-        host, port)
-
+        host,
+        port
+    )
     while not reader.at_eof():
         message = await reader.readline()
 
