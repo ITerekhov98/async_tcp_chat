@@ -1,10 +1,11 @@
+import argparse
 import asyncio
 import aiofiles
 import json
 import logging
+import os
 
 from environs import Env
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,16 +19,25 @@ async def receive_response(reader: asyncio.StreamReader):
 
 async def register(
         reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter):
+        writer: asyncio.StreamWriter,
+        user_name=None):
 
     await reader.readline()
-    user_name = input()
+    if not user_name:    
+        user_name = input()
+    else:
+        writer.write('\n'.encode())
+        await receive_response(reader)
+
     writer.write(f'{user_name}\n'.encode())
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)
 
-    async with aiofiles.open('.env', 'a') as f:
-        await f.write(f"CHAT_HASH_ID={user_info['account_hash']}")
+    filemode = 'r+' if os.path.exists('.env') else 'w+'
+    async with aiofiles.open('.env', filemode) as f:
+            config = await f.read()
+            if 'CHAT_HASH_ID' not in config:
+                await f.write(f"CHAT_HASH_ID={user_info['account_hash']}")
 
     logger.info(f"user {user_info['nickname']} successfully register")
     print(f"Добро пожаловать, {user_info['nickname']}!\r\n")
@@ -61,26 +71,47 @@ async def login(
     return False
 
 
-async def handle_writing(chat_hash_id):
+async def handle_writing(config: dict):
     reader, writer = await asyncio.open_connection(
-        'minechat.dvmn.org', 5050)
+        config['host'],
+        config['port']
+    )
+    if user_name := config.get('username'):
+        await register(reader, writer, user_name)
+    else:
+        is_login = await login(reader, writer, config['chat_hash_id'])
+        if not is_login:
+            logger.warning('Error occurred while trying to log in')
+            print('Не можем подключиться к чату. Попробуйте чуть позже')
+            writer.close()
+            return
 
-    is_login = await login(reader, writer, chat_hash_id)
-    if not is_login:
-        logger.warning('Error occurred while trying to log in')
-        print('Не можем подключиться к чату. Попробуйте чуть позже')
-        writer.close()
-        return
+    writer.write(f"{config['message']}\n\n".encode())
+    await writer.drain()
+    print('Ваше сообщение отправлено!')
+    logger.info(f"Отправлено сообщение: {config['message']}")
+    writer.close()
+    return
 
-    while True:
-        message = input('Введите текст сообщения:\r\n')
-        if not message:
-            continue
-        writer.write(f'{message}\n\n'.encode())
-        await writer.drain()
-        print('Ваше сообщение отправлено!')
-        logger.info(f'Отправлено сообщение: {message}')
-        await receive_response(reader)
+
+def get_config() -> dict:
+    config = {}
+    env = Env()
+    env.read_env()
+    config['host'] = env.str('HOST', 'minechat.dvmn.org')
+    config['port'] = env.int('PORT', 5050)
+    config['chat_hash_id'] = env.str('CHAT_HASH_ID', None)
+    parser = argparse.ArgumentParser(description='Send message to secret chat')
+    parser.add_argument('message')
+    parser.add_argument('--host')
+    parser.add_argument('--port')
+    parser.add_argument('--chat_hash_id')
+    parser.add_argument('--username')
+    args = parser.parse_args()
+    for name, value in vars(args).items():
+        if value:
+            config[name] = value
+    return config
 
 
 if __name__ == '__main__':
@@ -90,7 +121,5 @@ if __name__ == '__main__':
         format='%(levelname)s : %(name)s : %(message)s',
         level=logging.INFO
     )
-    env = Env()
-    env.read_env()
-    chat_hash_id = env.str('CHAT_HASH_ID', None)
-    asyncio.run(handle_writing(chat_hash_id))
+    config = get_config()
+    asyncio.run(handle_writing(config))
