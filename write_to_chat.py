@@ -1,8 +1,10 @@
 import asyncio
-from environs import Env
-import logging
-import json
 import aiofiles
+import json
+import logging
+
+from environs import Env
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +16,10 @@ async def receive_response(reader: asyncio.StreamReader):
     return decoded_response
 
 
-async def register(reader: asyncio.StreamReader, writer:asyncio.StreamWriter):
+async def register(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter):
+
     await reader.readline()
     user_name = input()
     writer.write(f'{user_name}\n'.encode())
@@ -29,7 +34,11 @@ async def register(reader: asyncio.StreamReader, writer:asyncio.StreamWriter):
     return True
 
 
-async def login(reader: asyncio.StreamReader, writer:asyncio.StreamWriter, chat_hash_id):
+async def login(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        chat_hash_id):
+
     response = await receive_response(reader)
     if response.startswith('Hello'):
         writer.write(f'{chat_hash_id}\n'.encode())
@@ -40,14 +49,15 @@ async def login(reader: asyncio.StreamReader, writer:asyncio.StreamWriter, chat_
         logger.warning('Cannot log in. Broken token.')
         print(
             'Не можем идентифицировать токен. '
-            'Проверьте правильность указанного токена и перезапустите программу,\r\n'
+            'Проверьте правильность указанного токена'
+            'и перезапустите программу,\r\n'
             'либо укажите никнейм для повторной регистрации:\r\n'
         )
         return await register(reader, writer)
 
     response = await receive_response(reader)
     if response.startswith('Welcome'):
-        return True  
+        return True
     return False
 
 
@@ -64,6 +74,8 @@ async def handle_writing(chat_hash_id):
 
     while True:
         message = input('Введите текст сообщения:\r\n')
+        if not message:
+            continue
         writer.write(f'{message}\n\n'.encode())
         await writer.drain()
         print('Ваше сообщение отправлено!')
