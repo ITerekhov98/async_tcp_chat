@@ -1,11 +1,10 @@
-import argparse
 import asyncio
 import aiofiles
 import json
 import logging
 import os
 
-from environs import Env
+from additional_tools import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -94,26 +93,6 @@ async def handle_writing(config: dict):
     return
 
 
-def get_config() -> dict:
-    config = {}
-    env = Env()
-    env.read_env()
-    config['host'] = env.str('HOST', 'minechat.dvmn.org')
-    config['port'] = env.int('PORT', 5050)
-    config['chat_hash_id'] = env.str('CHAT_HASH_ID', None)
-    parser = argparse.ArgumentParser(description='Send message to secret chat')
-    parser.add_argument('message')
-    parser.add_argument('--host')
-    parser.add_argument('--port')
-    parser.add_argument('--chat_hash_id')
-    parser.add_argument('--username')
-    args = parser.parse_args()
-    for name, value in vars(args).items():
-        if value:
-            config[name] = value
-    return config
-
-
 if __name__ == '__main__':
     logging.basicConfig(
         filename='logfile.log',
@@ -121,5 +100,5 @@ if __name__ == '__main__':
         format='%(levelname)s : %(name)s : %(message)s',
         level=logging.INFO
     )
-    config = get_config()
+    config = get_config('write')
     asyncio.run(handle_writing(config))

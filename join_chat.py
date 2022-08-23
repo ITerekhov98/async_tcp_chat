@@ -1,8 +1,8 @@
 import asyncio
 import aiofiles
 import datetime
-import argparse
-from environs import Env
+
+from additional_tools import get_config
 
 
 async def print_and_save_message(message: str, chat_file_path: str):
@@ -29,25 +29,7 @@ async def handle_connection(host: str, port: int, chat_file_path: str):
     writer.close()
 
 
-def get_config() -> dict:
-    config = {}
-    env = Env()
-    env.read_env()
-    config['host'] = env.str('host', 'minechat.dvmn.org')
-    config['port'] = env.int('port', 5000)
-    config['chat_file_path'] = env.str('chat_file_path', 'chat_history.txt')
-    parser = argparse.ArgumentParser(description='Connect to secret chat')
-    parser.add_argument('--host')
-    parser.add_argument('--port')
-    parser.add_argument('--chat_file_path')
-    args = parser.parse_args()
-    for name, value in vars(args).items():
-        if value:
-            config[name] = value
-    return config
-
-
 if __name__ == '__main__':
-    config = get_config()
+    config = get_config('read')
     asyncio.run(handle_connection(**config))
 
