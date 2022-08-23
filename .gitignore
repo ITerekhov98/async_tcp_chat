@@ -2,3 +2,4 @@ env
 *.
 !.gitignore
 chat_history.txt
+*.log
