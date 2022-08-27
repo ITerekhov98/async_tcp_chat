@@ -70,26 +70,31 @@ async def login(
     return False
 
 
-async def handle_writing(config: dict):
-    reader, writer = await asyncio.open_connection(
-        config['host'],
-        config['port']
-    )
-    if user_name := config.get('username'):
-        await register(reader, writer, user_name)
-    else:
-        is_login = await login(reader, writer, config['chat_hash_id'])
-        if not is_login:
-            logger.warning('Error occurred while trying to log in')
-            print('Не можем подключиться к чату. Попробуйте чуть позже')
-            writer.close()
-            return
+async def handle_writing(
+        host,
+        port,
+        message,
+        chat_hash_id,
+        username):
 
-    writer.write(f"{config['message']}\n\n".encode())
-    await writer.drain()
-    print('Ваше сообщение отправлено!')
-    logger.info(f"Отправлено сообщение: {config['message']}")
-    writer.close()
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        if username:
+            await register(reader, writer, username)
+        else:
+            is_login = await login(reader, writer, chat_hash_id)
+            if not is_login:
+                logger.warning('Error occurred while trying to log in')
+                print('Не можем подключиться к чату. Попробуйте чуть позже')
+                writer.close()
+                return
+
+        writer.write(f"{message}\n\n".encode())
+        await writer.drain()
+        print('Ваше сообщение отправлено!')
+        logger.info(f"Отправлено сообщение: {message}")
+    finally:
+        writer.close()
     return
 
 
@@ -101,4 +106,17 @@ if __name__ == '__main__':
         level=logging.INFO
     )
     config = get_config('write')
-    asyncio.run(handle_writing(config))
+    host = config['host']
+    port = config['port']
+    message = config['message']
+    chat_hash_id = config['chat_hash_id']
+    username = config.get('username')
+    asyncio.run(
+        handle_writing(
+            host,
+            port,
+            message,
+            chat_hash_id,
+            username
+        )
+    )

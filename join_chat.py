@@ -21,16 +21,19 @@ async def handle_connection(host: str, port: int, chat_file_path: str):
         host,
         port
     )
-    while not reader.at_eof():
-        message = await reader.readline()
-
-        await print_and_save_message(message.decode(), chat_file_path)
-
-    print('Close the connection')
-    writer.close()
+    try:
+        while not reader.at_eof():
+            message = await reader.readline()
+            await print_and_save_message(message.decode(), chat_file_path)
+    finally:
+        print('Close the connection')
+        writer.close()
 
 
 if __name__ == '__main__':
     config = get_config('read')
-    asyncio.run(handle_connection(**config))
+    host = config['host']
+    port = config['port']
+    chat_file_path = config['chat_file_path']
+    asyncio.run(handle_connection(host, port, chat_file_path))
 

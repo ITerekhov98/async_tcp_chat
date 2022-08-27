@@ -1,5 +1,5 @@
 import argparse
-from environs import Env, EnvError
+from environs import Env
 
 
 def get_config(script_action) -> dict:
@@ -7,13 +7,15 @@ def get_config(script_action) -> dict:
     env = Env()
     env.read_env()
     parser = argparse.ArgumentParser(description='Send message to secret chat')
-    config['host'] = env.str('HOST', None)
-    config['port'] = env.int('WRITING_PORT', 0)
+    config['host'] = env.str('HOST', 'minechat.dvmn.org')
+    
     if script_action == 'read':
+        config['port'] = env.int('READING_PORT', 5000)
         config['chat_file_path'] = env.str('CHAT_FILE_PATH', 'chat_history.txt')
         parser.add_argument('--chat_file_path')
     else:
-        config['chat_hash_id'] = env.str('CHAT_HASH_ID', None)
+        config['port'] = env.int('WRITING_PORT', 5050)
+        config['chat_hash_id'] = env.str('CHAT_HASH_ID', '')
         parser.add_argument('message')
         parser.add_argument('--chat_hash_id')
         parser.add_argument('--username')
@@ -24,6 +26,4 @@ def get_config(script_action) -> dict:
     for name, value in vars(args).items():
         if value:
             config[name] = value
-    if not config['host'] or not config['port']:
-        raise EnvError('Не указаны данные для подключения!')
     return config
