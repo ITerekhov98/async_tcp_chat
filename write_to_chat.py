@@ -15,29 +15,28 @@ async def receive_response(reader: asyncio.StreamReader):
     logger.info(decoded_response)
     return decoded_response
 
+async def update_config_file(chat_hash_id: str):
+    filemode = 'r+' if os.path.exists('.env') else 'w+'
+    async with aiofiles.open('.env', filemode) as f:
+            config = await f.read()
+            if 'CHAT_HASH_ID' not in config:
+                await f.write(f"\nCHAT_HASH_ID={chat_hash_id}")
+
 
 async def register(
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        user_name=None):
+        user_name: str):
 
     await reader.readline()
-    if not user_name:    
-        user_name = input()
-    else:
-        writer.write('\n'.encode())
-        await receive_response(reader)
+    writer.write('\n'.encode())
+    await receive_response(reader)
 
     writer.write(f'{user_name}\n'.encode())
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)
 
-    filemode = 'r+' if os.path.exists('.env') else 'w+'
-    async with aiofiles.open('.env', filemode) as f:
-            config = await f.read()
-            if 'CHAT_HASH_ID' not in config:
-                await f.write(f"\nCHAT_HASH_ID={user_info['account_hash']}")
-
+    await update_config_file(user_info['account_hash'])
     logger.info(f"user {user_info['nickname']} successfully register")
     print(f"Добро пожаловать, {user_info['nickname']}!\r\n")
     return True
