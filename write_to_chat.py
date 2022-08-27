@@ -6,6 +6,7 @@ import os
 
 from additional_tools import get_config
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,6 +15,7 @@ async def receive_response(reader: asyncio.StreamReader):
     decoded_response = response.decode()
     logger.info(decoded_response)
     return decoded_response
+
 
 async def update_config_file(chat_hash_id: str):
     filemode = 'r+' if os.path.exists('.env') else 'w+'
@@ -30,9 +32,11 @@ async def register(
 
     await reader.readline()
     writer.write('\n'.encode())
+    await writer.drain()
     await receive_response(reader)
 
     writer.write(f'{user_name}\n'.encode())
+    await writer.drain()
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)
 
@@ -66,7 +70,6 @@ async def login(
     response = await receive_response(reader)
     if response.startswith('Welcome'):
         return True
-    return False
 
 
 async def handle_writing(
