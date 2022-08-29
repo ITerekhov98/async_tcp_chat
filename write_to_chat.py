@@ -20,23 +20,39 @@ async def receive_response(reader: asyncio.StreamReader):
 async def update_config_file(chat_hash_id: str):
     filemode = 'r+' if os.path.exists('.env') else 'w+'
     async with aiofiles.open('.env', filemode) as f:
-            config = await f.read()
-            if 'CHAT_HASH_ID' not in config:
-                await f.write(f"\nCHAT_HASH_ID={chat_hash_id}")
+        config = await f.read()
+        if 'CHAT_HASH_ID' not in config:
+            await f.write(f"\nCHAT_HASH_ID={chat_hash_id}")
+
+
+async def write_with_drain(writer: asyncio.StreamWriter, message):
+    writer.write(message.encode())
+    await writer.drain()
+
+
+async def get_username_from_user():
+    print(
+        'Не можем идентифицировать токен. '
+        'Проверьте правильность указанного токена '
+        'и перезапустите программу,\r\n'
+        'либо укажите никнейм для повторной регистрации:\r\n'
+    )
+    return input()
 
 
 async def register(
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        user_name: str):
+        user_name=None):
 
-    await reader.readline()
-    writer.write('\n'.encode())
-    await writer.drain()
+    if not user_name:
+        user_name = await get_username_from_user()
+    else:
+        await reader.readline()
+        await write_with_drain(writer, '\n')
     await receive_response(reader)
 
-    writer.write(f'{user_name}\n'.encode())
-    await writer.drain()
+    await write_with_drain(writer, f'{user_name}\n')
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)
 
@@ -59,12 +75,6 @@ async def login(
     user_info = json.loads(raw_user_info)
     if not user_info:
         logger.warning('Cannot log in. Broken token.')
-        print(
-            'Не можем идентифицировать токен. '
-            'Проверьте правильность указанного токена'
-            'и перезапустите программу,\r\n'
-            'либо укажите никнейм для повторной регистрации:\r\n'
-        )
         return await register(reader, writer)
 
     response = await receive_response(reader)
@@ -91,13 +101,11 @@ async def handle_writing(
                 writer.close()
                 return
 
-        writer.write(f"{message}\n\n".encode())
-        await writer.drain()
+        await write_with_drain(writer, f"{message}\n\n")
         print('Ваше сообщение отправлено!')
         logger.info(f"Отправлено сообщение: {message}")
     finally:
         writer.close()
-    return
 
 
 if __name__ == '__main__':

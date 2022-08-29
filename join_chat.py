@@ -1,11 +1,12 @@
 import asyncio
-import aiofiles
 import datetime
+
+import aiofiles
 
 from additional_tools import get_config
 
 
-async def print_and_save_message(message: str, chat_file: str):
+async def print_and_save_message(message: str, chat_file):
     current_time = datetime.datetime.now()
     formated_message = "{} {}".format(
         current_time.strftime('[%d.%m.%y %H:%M]'),
@@ -36,4 +37,3 @@ if __name__ == '__main__':
     port = config['port']
     chat_file_path = config['chat_file_path']
     asyncio.run(handle_connection(host, port, chat_file_path))
-
