@@ -2,7 +2,8 @@ import tkinter as tk
 import asyncio
 from tkinter.scrolledtext import ScrolledText
 from enum import Enum
-import time
+from additional_tools import get_config
+from join_chat import read_messages, save_messages
 
 
 class TkAppClosed(Exception):
@@ -132,22 +133,20 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
         update_conversation_history(conversation_panel, messages_queue),
         update_status_panel(status_labels, status_updates_queue)
     )
-
-
-async def generate_msgs(queue):
-    while True:
-        timestamp = time.time()
-        queue.put_nowait(timestamp)
-        await asyncio.sleep(1)
-
+     
 
 async def main():
+    config = get_config('read')
+    host = config['host']
+    port = config['port']
     messages_queue = asyncio.Queue()
+    saving_queue = asyncio.Queue()
     sending_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
     await asyncio.gather(
         draw(messages_queue, sending_queue, status_updates_queue),
-        generate_msgs(messages_queue)
+        read_messages(host, port, messages_queue, saving_queue),
+        save_messages('chat_history.txt', saving_queue, messages_queue)
     )
 
 asyncio.run(main())
