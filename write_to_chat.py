@@ -3,11 +3,30 @@ import aiofiles
 import json
 import logging
 import os
+from enum import Enum
 
 from additional_tools import get_config
 
 
 logger = logging.getLogger(__name__)
+
+
+class InvalidToken(Exception):
+    pass
+
+
+class SendingConnectionStateChanged(Enum):
+    INITIATED = 'устанавливаем соединение'
+    ESTABLISHED = 'соединение установлено'
+    CLOSED = 'соединение закрыто'
+
+    def __str__(self):
+        return str(self.value)
+
+
+class NicknameReceived:
+    def __init__(self, nickname):
+        self.nickname = nickname
 
 
 async def receive_response(reader: asyncio.StreamReader):
@@ -74,38 +93,65 @@ async def login(
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)
     if not user_info:
-        logger.warning('Cannot log in. Broken token.')
-        return await register(reader, writer)
+        return
 
     response = await receive_response(reader)
     if response.startswith('Welcome'):
-        return True
+        return user_info['nickname']
 
 
 async def handle_writing(
         host,
         port,
-        message,
         chat_hash_id,
-        username):
+        sending_queue: asyncio.Queue,
+        status_updates_queue: asyncio.Queue,
+        watchdog_queue: asyncio.Queue):
 
+    status_updates_queue.put_nowait(SendingConnectionStateChanged.INITIATED)
     reader, writer = await asyncio.open_connection(host, port)
+    status_updates_queue.put_nowait(SendingConnectionStateChanged.ESTABLISHED)
     try:
-        if username:
-            await register(reader, writer, username)
-        else:
-            is_login = await login(reader, writer, chat_hash_id)
-            if not is_login:
-                logger.warning('Error occurred while trying to log in')
-                print('Не можем подключиться к чату. Попробуйте чуть позже')
-                writer.close()
-                return
+        watchdog_queue.put_nowait('Connection is alive. Prompt before auth')
+        username = await login(reader, writer, chat_hash_id)
+        if not username:
+            raise InvalidToken
+        watchdog_queue.put_nowait('Connection is alive. Authorization done')
+        status_updates_queue.put_nowait(NicknameReceived(username))
+        while True:
+            message = await sending_queue.get()
+            await write_with_drain(writer, f"{message}\n\n")
+            watchdog_queue.put_nowait('Connection is alive. Message sent')
 
-        await write_with_drain(writer, f"{message}\n\n")
-        print('Ваше сообщение отправлено!')
-        logger.info(f"Отправлено сообщение: {message}")
     finally:
+        status_updates_queue.put_nowait(SendingConnectionStateChanged.CLOSED)
         writer.close()
+
+
+# async def handle_writing(
+#         host,
+#         port,
+#         message,
+#         chat_hash_id,
+#         username):
+
+#     reader, writer = await asyncio.open_connection(host, port)
+#     try:
+#         if username:
+#             await register(reader, writer, username)
+#         else:
+#             is_login = await login(reader, writer, chat_hash_id)
+#             if not is_login:
+#                 logger.warning('Error occurred while trying to log in')
+#                 print('Не можем подключиться к чату. Попробуйте чуть позже')
+#                 writer.close()
+#                 return
+
+#         await write_with_drain(writer, f"{message}\n\n")
+#         print('Ваше сообщение отправлено!')
+#         logger.info(f"Отправлено сообщение: {message}")
+#     finally:
+#         writer.close()
 
 
 if __name__ == '__main__':

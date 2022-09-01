@@ -1,36 +1,38 @@
+import time
 import tkinter as tk
 import asyncio
 from tkinter.scrolledtext import ScrolledText
-from enum import Enum
-from additional_tools import get_config
-from join_chat import read_messages, save_messages
+from tkinter import messagebox
 
+from additional_tools import get_config
+from join_chat import read_messages, save_messages, ReadConnectionStateChanged
+import logging
+from anyio import sleep, create_task_group, run
+from async_timeout import timeout
+from write_to_chat import handle_writing, InvalidToken, SendingConnectionStateChanged, NicknameReceived
+
+logger = logging.getLogger('watchdog_logger')
+
+
+RECONNECT_TIMEOUT = 5
+ATTEMPTS_TO_RECONNECT = 3
+BREAK_DURATION = 60
 
 class TkAppClosed(Exception):
     pass
 
 
-class ReadConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
+class HandleReconnect():
+    def __init__(self, max_attempts, time_to_break):
+        self.max_attempts = max_attempts
+        self.time_to_break = time_to_break
+        self.attempts_count = 0
+    
+    def is_time_to_break(self):
+        return self.max_attempts <= self.attempts_count
 
-    def __str__(self):
-        return str(self.value)
-
-
-class SendingConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
-
-    def __str__(self):
-        return str(self.value)
-
-
-class NicknameReceived:
-    def __init__(self, nickname):
-        self.nickname = nickname
+    def reset_attempts(self):
+        self.attempts_count = 0
 
 
 def process_new_message(input_field, sending_queue):
@@ -128,25 +130,65 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
     conversation_panel = ScrolledText(root_frame, wrap='none')
     conversation_panel.pack(side="top", fill="both", expand=True)
 
-    await asyncio.gather(
-        update_tk(root_frame),
-        update_conversation_history(conversation_panel, messages_queue),
-        update_status_panel(status_labels, status_updates_queue)
-    )
-     
+    async with create_task_group() as tg:
+        tg.start_soon(update_tk, root_frame),
+        tg.start_soon(update_conversation_history, conversation_panel, messages_queue),
+        tg.start_soon(update_status_panel, status_labels, status_updates_queue)
+
+
+
+async def watch_for_connection(watchdog_queue: asyncio.Queue, reconnect: HandleReconnect):
+    while True:
+        try:
+            async with timeout(RECONNECT_TIMEOUT):
+                notice = await watchdog_queue.get()
+            reconnect.reset_attempts()
+            logger.info(f'[{time.time()}] {notice}')
+        except asyncio.exceptions.TimeoutError:
+            raise ConnectionError
+        
+
+
+async def handle_connection(host, reading_port, writing_port, messages_queue, saving_queue, status_updates_queue, chat_hash_id, sending_queue, watchdog_queue: asyncio.Queue):
+    reconnect = HandleReconnect(ATTEMPTS_TO_RECONNECT, BREAK_DURATION)
+    while True:
+        try:
+            async with create_task_group() as tg:
+                tg.start_soon(watch_for_connection, watchdog_queue, reconnect)
+                tg.start_soon(read_messages, host, reading_port, messages_queue, saving_queue, status_updates_queue, watchdog_queue)
+                tg.start_soon(handle_writing, host, writing_port, chat_hash_id, sending_queue, status_updates_queue, watchdog_queue)
+        except ConnectionError:
+            reconnect.attempts_count += 1
+            if not reconnect.is_time_to_break():
+                logger.warning(f'Attempt {reconnect.attempts_count} of {reconnect.max_attempts}. Reconnecting...')
+            else:
+                logger.warning(f'Limit of reconnecting attempts has been exceeded. Sleep for {BREAK_DURATION}')
+                await asyncio.sleep(BREAK_DURATION)
+
 
 async def main():
+    logging.basicConfig(
+        filename='logfile.log',
+        filemode='a',
+        format='%(levelname)s : %(message)s',
+        level=logging.INFO
+    )
     config = get_config('read')
     host = config['host']
-    port = config['port']
+    reading_port = config['reading_port']
+    writing_port = config['writing_port']
+    chat_hash_id = config['chat_hash_id']
     messages_queue = asyncio.Queue()
     saving_queue = asyncio.Queue()
     sending_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
-    await asyncio.gather(
-        draw(messages_queue, sending_queue, status_updates_queue),
-        read_messages(host, port, messages_queue, saving_queue),
-        save_messages('chat_history.txt', saving_queue, messages_queue)
-    )
+    watchdog_queue = asyncio.Queue()
+    try:
+        async with create_task_group() as tg:
+            tg.start_soon(draw, messages_queue, sending_queue, status_updates_queue),
+            tg.start_soon(save_messages, 'chat_history.txt', saving_queue, messages_queue)
+            tg.start_soon(handle_connection, host, reading_port, writing_port, messages_queue, saving_queue, status_updates_queue, chat_hash_id, sending_queue, watchdog_queue)
+    except InvalidToken:
+        messagebox.showinfo("Неверный токен", "Проверьте правильность токена")
 
 asyncio.run(main())

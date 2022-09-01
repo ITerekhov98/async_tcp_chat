@@ -1,17 +1,34 @@
 import asyncio
 import aiofiles
 
+from enum import Enum
 
-async def read_messages(host, port, messages_queue: asyncio.Queue, saving_queue: asyncio.Queue):
+
+class ReadConnectionStateChanged(Enum):
+    INITIATED = 'устанавливаем соединение'
+    ESTABLISHED = 'соединение установлено'
+    CLOSED = 'соединение закрыто'
+
+    def __str__(self):
+        return str(self.value)
+
+
+async def read_messages(host, port, messages_queue: asyncio.Queue, saving_queue: asyncio.Queue, status_updates_queue: asyncio.Queue, watchdog_queue: asyncio.Queue):
+    status_updates_queue.put_nowait(ReadConnectionStateChanged.INITIATED)
     reader, writer = await asyncio.open_connection(
         host,
         port
     )
-    while not reader.at_eof():
-        message = await reader.readline()
-        messages_queue.put_nowait(message.decode())
-        saving_queue.put_nowait(message.decode())
-
+    status_updates_queue.put_nowait(ReadConnectionStateChanged.ESTABLISHED)
+    try:
+        while not reader.at_eof():
+            message = await reader.readline()
+            messages_queue.put_nowait(message.decode())
+            saving_queue.put_nowait(message.decode())
+            watchdog_queue.put_nowait('Connection is alive. New message in chat')
+    finally:
+            status_updates_queue.put_nowait(ReadConnectionStateChanged.CLOSED)
+        
 
 async def get_chat_history(filepath):
     async with aiofiles.open(filepath, 'r') as chat_file:
