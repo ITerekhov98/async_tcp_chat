@@ -7,6 +7,7 @@ from async_timeout import timeout
 from additional_tools import Queues
 from files_handling import update_config_file
 
+
 class HandleReconnect():
     def __init__(self, max_attempts, time_to_break):
         self.max_attempts = max_attempts

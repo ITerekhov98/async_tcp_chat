@@ -101,11 +101,17 @@ async def draw(queues: Queues):
     input_field = tk.Entry(input_frame)
     input_field.pack(side="left", fill=tk.X, expand=True)
 
-    input_field.bind("<Return>", lambda event: process_new_message(input_field, queues.sending_queue))
+    input_field.bind(
+        "<Return>",
+        lambda event: process_new_message(input_field, queues.sending_queue)
+    )
 
     send_button = tk.Button(input_frame)
     send_button["text"] = "Отправить"
-    send_button["command"] = lambda: process_new_message(input_field, queues.sending_queue)
+    send_button["command"] = lambda: process_new_message(
+        input_field,
+        queues.sending_queue
+    )
     send_button.pack(side="left")
 
     conversation_panel = ScrolledText(root_frame, wrap='none')
@@ -126,7 +132,10 @@ async def draw(queues: Queues):
 
 
 async def draw_success_notice(username):
-    messagebox.showinfo('', f'Пользователь {username} успешно зарегистрирован!')
+    messagebox.showinfo(
+        '',
+        f'Пользователь {username} успешно зарегистрирован!'
+    )
 
 
 async def draw_register_panel(queue):
@@ -134,18 +143,23 @@ async def draw_register_panel(queue):
     root.title('Регистрация')
     root.geometry('300x100')
 
-    label = tk.Label(root, text="Укажите nickname для регистрации и доступа к чату")
+    label = tk.Label(
+        root,
+        text="Укажите nickname для регистрации и доступа к чату"
+    )
     label.pack()
     input_frame = tk.Frame(root)
     input_frame.pack(side="bottom", fill=tk.X)
 
     input_field = tk.Entry(input_frame)
     input_field.pack(side="left", fill=tk.X, expand=True)
-    input_field.bind("<Return>", lambda event: process_new_message(input_field, queue))
+    input_field.bind(
+        "<Return>", lambda event: process_new_message(input_field, queue)
+    )
 
     send_button = tk.Button(input_frame)
     send_button["text"] = "Отправить"
     send_button["command"] = lambda: process_new_message(input_field, queue)
     send_button.pack(side="left")
-    
+
     return root

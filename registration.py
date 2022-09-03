@@ -5,7 +5,12 @@ import logging
 
 from network_tools import register
 from additional_tools import get_config
-from gui import draw_success_notice, update_tk, TkAppClosed, draw_register_panel
+from gui import (
+    TkAppClosed,
+    draw_success_notice,
+    update_tk,
+    draw_register_panel
+)
 
 
 logger = logging.getLogger('registration')
@@ -46,6 +51,3 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, TkAppClosed):
         sys.exit(0)
-
-
-
