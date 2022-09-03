@@ -1,5 +1,6 @@
 import asyncio
 import tkinter as tk
+from tkinter import messagebox
 from anyio import create_task_group
 from tkinter.scrolledtext import ScrolledText
 from additional_tools import Queues
@@ -122,3 +123,29 @@ async def draw(queues: Queues):
             status_labels,
             queues.status_updates_queue
         )
+
+
+async def draw_success_notice(username):
+    messagebox.showinfo('', f'Пользователь {username} успешно зарегистрирован!')
+
+
+async def draw_register_panel(queue):
+    root = tk.Tk()
+    root.title('Регистрация')
+    root.geometry('300x100')
+
+    label = tk.Label(root, text="Укажите nickname для регистрации и доступа к чату")
+    label.pack()
+    input_frame = tk.Frame(root)
+    input_frame.pack(side="bottom", fill=tk.X)
+
+    input_field = tk.Entry(input_frame)
+    input_field.pack(side="left", fill=tk.X, expand=True)
+    input_field.bind("<Return>", lambda event: process_new_message(input_field, queue))
+
+    send_button = tk.Button(input_frame)
+    send_button["text"] = "Отправить"
+    send_button["command"] = lambda: process_new_message(input_field, queue)
+    send_button.pack(side="left")
+    
+    return root

@@ -78,27 +78,25 @@ async def main():
     chat_filepath = config['chat_file_path']
     queues = Queues(*[asyncio.Queue() for _ in range(5)])
 
-    try:
-        async with create_task_group() as tg:
-            tg.start_soon(draw, queues),
-            tg.start_soon(save_messages, chat_filepath, queues)
-            tg.start_soon(
-                handle_connection,
-                host,
-                reading_port,
-                writing_port,
-                chat_hash_id,
-                queues
-            )
-    except InvalidToken:
-        messagebox.showinfo("Неверный токен", "Проверьте правильность токена")
-    except (KeyboardInterrupt, TkAppClosed):
-        sys.exit(0)
+    async with create_task_group() as tg:
+        tg.start_soon(draw, queues),
+        tg.start_soon(save_messages, chat_filepath, queues)
+        tg.start_soon(
+            handle_connection,
+            host,
+            reading_port,
+            writing_port,
+            chat_hash_id,
+            queues
+        )
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(main())
+        asyncio.run(main())
+    except InvalidToken:
+        messagebox.showinfo("Неверный токен", "Проверьте правильность токена")
+        sys.exit(1)
     except (KeyboardInterrupt, TkAppClosed):
         sys.exit(0)
+

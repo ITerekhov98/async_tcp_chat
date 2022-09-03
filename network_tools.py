@@ -5,7 +5,7 @@ from enum import Enum
 from async_timeout import timeout
 
 from additional_tools import Queues
-
+from files_handling import update_config_file
 
 class HandleReconnect():
     def __init__(self, max_attempts, time_to_break):
@@ -154,37 +154,18 @@ async def watch_for_connection(
             raise ConnectionError
 
 
+async def register(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        user_name):
 
+    await reader.readline()
+    await write_with_drain(writer, '\n')
+    await receive_response(reader)
 
+    await write_with_drain(writer, f'{user_name}\n')
+    raw_user_info = await receive_response(reader)
+    user_info = json.loads(raw_user_info)
 
-
-
-# async def get_username_from_user():
-#     print(
-#         'Не можем идентифицировать токен. '
-#         'Проверьте правильность указанного токена '
-#         'и перезапустите программу,\r\n'
-#         'либо укажите никнейм для повторной регистрации:\r\n'
-#     )
-#     return input()
-
-
-# async def register(
-#         reader: asyncio.StreamReader,
-#         writer: asyncio.StreamWriter,
-#         user_name=None):
-
-#     if not user_name:
-#         user_name = await get_username_from_user()
-#     else:
-#         await reader.readline()
-#         await write_with_drain(writer, '\n')
-#     await receive_response(reader)
-
-#     await write_with_drain(writer, f'{user_name}\n')
-#     raw_user_info = await receive_response(reader)
-#     user_info = json.loads(raw_user_info)
-
-#     await update_config_file(user_info['account_hash'])
-#     print(f"Добро пожаловать, {user_info['nickname']}!\r\n")
-#     return True
+    await update_config_file(user_info['account_hash'])
+    return True
