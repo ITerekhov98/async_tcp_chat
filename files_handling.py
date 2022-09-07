@@ -5,6 +5,9 @@ from additional_tools import Queues
 
 
 async def load_chat_history(filepath, messages_queue):
+    if not os.path.exists(filepath):
+        return
+        
     async with aiofiles.open(filepath, 'r') as chat_file:
         chat_history = await chat_file.read()
     messages_queue.put_nowait(chat_history)

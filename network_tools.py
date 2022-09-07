@@ -91,7 +91,7 @@ async def login(
 
     response = await receive_response(reader)
     if response.startswith('Hello'):
-        writer.write(f'{chat_hash_id}\n'.encode())
+        await write_with_drain(writer, f'{chat_hash_id}\n')
 
     raw_user_info = await receive_response(reader)
     user_info = json.loads(raw_user_info)

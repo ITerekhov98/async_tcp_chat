@@ -17,12 +17,16 @@ logger = logging.getLogger('registration')
 
 
 async def handle_connection(host, port, queue: asyncio.Queue):
-    reader, writer = await asyncio.open_connection(host, port)
-    username = await queue.get()
-    if await register(reader, writer, username):
-        await draw_success_notice(username)
-        logger.info(f'Successfull registration for {username}')
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        username = await queue.get()
+        if await register(reader, writer, username):
+            await draw_success_notice(username)
+            logger.info(f'Successfull registration for {username}')
+    finally:
+        writer.close()
         raise TkAppClosed()
+
 
 
 async def main():
