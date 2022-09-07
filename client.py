@@ -9,6 +9,7 @@ from network_tools import (
     watch_for_connection,
     read_messages,
     handle_writing,
+    send_check_message,
     InvalidToken
 )
 from files_handling import save_messages
@@ -47,6 +48,12 @@ async def handle_connection(
                     writing_port,
                     chat_hash_id,
                     queues
+                )
+                tg.start_soon(
+                    send_check_message,
+                    host, 
+                    writing_port,
+                    queues.watchdog_queue
                 )
         except ConnectionError:
             reconnect.attempts_count += 1

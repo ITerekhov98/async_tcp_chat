@@ -170,3 +170,16 @@ async def register(
 
     await update_config_file(user_info['account_hash'])
     return True
+
+
+async def send_check_message(host, port, queue: asyncio.queues.Queue):
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        await write_with_drain(writer, '')
+        response = await reader.readline()
+        if response:
+            queue.put_nowait(
+                'Connection is alive. Fetch response from server'
+            )
+    finally:
+        writer.close()
