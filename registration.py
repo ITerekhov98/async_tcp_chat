@@ -16,17 +16,19 @@ from gui import (
 logger = logging.getLogger('registration')
 
 
+async def handle_register(reader, writer, queue: asyncio.Queue):
+    username = await queue.get()
+    await register(reader, writer, username)
+    await draw_success_notice(username)
+    logger.info(f'Successfull registration for {username}')
+
+
 async def handle_connection(host, port, queue: asyncio.Queue):
     try:
         reader, writer = await asyncio.open_connection(host, port)
-        username = await queue.get()
-        if await register(reader, writer, username):
-            await draw_success_notice(username)
-            logger.info(f'Successfull registration for {username}')
+        await handle_register(reader, writer, queue)
     finally:
         writer.close()
-        raise TkAppClosed()
-
 
 
 async def main():

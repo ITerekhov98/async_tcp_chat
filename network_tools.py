@@ -63,10 +63,7 @@ async def read_messages(host, port, queues: Queues):
     queues.status_updates_queue.put_nowait(
         ReadConnectionStateChanged.INITIATED
     )
-    reader, writer = await asyncio.open_connection(
-        host,
-        port
-    )
+    reader, writer = await asyncio.open_connection(host, port)
     queues.status_updates_queue.put_nowait(
         ReadConnectionStateChanged.ESTABLISHED
     )
@@ -79,6 +76,7 @@ async def read_messages(host, port, queues: Queues):
                 'Connection is alive. New message in chat'
             )
     finally:
+        writer.close()
         queues.status_updates_queue.put_nowait(
             ReadConnectionStateChanged.CLOSED
         )
