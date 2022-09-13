@@ -77,6 +77,7 @@ async def read_messages(host, port, queues: Queues):
             )
     finally:
         writer.close()
+        await writer.wait_closed()
         queues.status_updates_queue.put_nowait(
             ReadConnectionStateChanged.CLOSED
         )
@@ -136,6 +137,7 @@ async def handle_writing(
             SendingConnectionStateChanged.CLOSED
         )
         writer.close()
+        await writer.wait_closed()
 
 
 async def watch_for_connection(
@@ -181,3 +183,5 @@ async def send_check_message(host, port, queue: asyncio.queues.Queue):
             )
     finally:
         writer.close()
+        await writer.wait_closed()
+        

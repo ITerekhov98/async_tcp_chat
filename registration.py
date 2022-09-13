@@ -29,6 +29,7 @@ async def handle_connection(host, port, queue: asyncio.Queue):
         await handle_register(reader, writer, queue)
     finally:
         writer.close()
+        await writer.wait_closed()  
 
 
 async def main():
